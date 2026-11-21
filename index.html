@@ -5074,9 +5074,39 @@ h1{
     renderAll(); saveGame(); scrollStoryIntoView();
   }
 
+  function buildYoungBirthday(s){
+    const p = s.player, f = s.family;
+    const mother = famNpc(s, '母亲'), father = famNpc(s, '父亲');
+    const sib = siblingsOf(s).find(n => n.alive);
+    const mate = s.npcs.find(n => n.relation === '玩伴' && n.alive !== false);
+    const rich = (f.cash || 0) >= 150 || (f.rank || 1) >= 3;
+    const treat = rich ? '家里买了半斤水果糖，母亲还蒸了白面馒头' : '母亲煮了一个鸡蛋，卧了一碗面';
+    const text = `${s.year}年${s.month}月，你满${p.age}岁了。\n` +
+      `${treat}。父亲把桌子擦了两遍，说今天你是小寿星。\n` +
+      (p.age <= 3 ? '母亲把你抱到凳子上，怕你坐不稳。' : '院里几个孩子扒着门框往里看。');
+    const opts = [
+      makeOption({t:'让母亲讲你出生那天的事', eff:{'心情':3,'好感':2}, target:mother ? mother.name : null,
+        r:() => '母亲说你出生那天下了雨，父亲在门口来回走。\n她讲着讲着笑了，说一转眼就这么大了。'}, s),
+      makeOption({t:'把糖和鸡蛋分给' + (sib ? sib.name : (mate ? mate.name : '院里的小孩')), eff:{'人缘':2,'心情':3},
+        r:() => '你把手里的东西分了出去。\n他们围着你，说今天你最大。'}, s),
+      makeOption({t:'让父亲带你上街看热闹', cond:() => p.age >= 3, eff:{'见闻':2,'心情':4}, target:father ? father.name : null,
+        r:() => '父亲把你架在肩上，街上有卖糖人的，也有敲锣的。\n你什么都要看，父亲走得很慢。'}, s),
+      makeOption({t:'在院里和伙伴玩到天黑', cond:() => !!(sib || mate), eff:{'人缘':2,'心情':3},
+        r:() => '你们在院里追来跑去，母亲喊了两回才回去。\n桌上给你留着一块糖。'}, s)
+    ];
+    const id = 'youngbday_' + s.year;
+    storyData[id] = {id:id, kind:'event', tag:'生日', title:p.age + '岁生日',
+      location:s.city.name + '·' + s.city.lane, text:text, options:opts, delta:[],
+      date:s.year + '年' + s.month + '月'};
+    s.currentStoryId = id; currentStoryId = id; s.pendingChoice = true;
+    s.history.push({date:s.year + '年' + s.month + '月', event:p.age + '岁生日'});
+    renderAll(); saveGame(); scrollStoryIntoView();
+  }
+
   function buildBirthday(){
     const s = gameState, p = s.player, f = s.family;
     if(p.edu === '大学'){ buildUniBirthday(s); return; }
+    if(p.age <= 9){ buildYoungBirthday(s); return; }
     const father = famNpc(s, '父亲'), mother = famNpc(s, '母亲');
     const sib = siblingsOf(s).find(n => n.alive) || null;
     const age = p.age;
@@ -5817,7 +5847,7 @@ h1{
   const BABY_CAPS = {
     bcry:2, bfeed:2, bsick:2, bmove:2, bspeak:1,
     bout:3, bnewyear:3, bplay:3, bchore:2, blisten:2,
-    breldad:1, brelmom:1, bplaymate:3, bplaymore:3, bcompound:3, bwork:3, bvacc:2, breg:1, bphoto:2, bnursery:2, bfest:2
+    breldad:1, brelmom:1, bplaymate:2, bplaymore:2, bcompound:2, bstreet:2, bhome2:2, bfestival:2, bnursery2:2, bweather2:2, bfood2:2, bwork:3, bvacc:2, breg:1, bphoto:2, bnursery:2, bfest:2
   };
 
   const BABY_SLICES = [
@@ -6178,6 +6208,90 @@ h1{
             r:() => '你趴在窗台上看他们在院里跑。\n后来' + n.name + '冲你招手，你还是没下去。'}
         ];
       }
+    },
+    {
+      id:'bstreet', ages:[2,5],
+      details:['爆米花机','补锅匠','剃头挑子','耍猴的','卖糖人的'],
+      title:d => '街上的' + d,
+      text:(d,s) => `${s.year}年${s.month}月，街上来了${d}。\n母亲牵着你的手，怕你被人群挤散。\n你踮着脚，从大人的腿缝里往里看。`,
+      opts:(d,s) => [
+        {t:'挤到前面看个够', eff:{'见闻':2,'胆量':0.6,'心情':3},
+          r:() => '你挤到最前面，看得眼睛都不眨。\n母亲在后面喊慢点，你嘴上应着，脚却没停。'},
+        {t:'让母亲买一点', eff:{'心情':3,'私房钱':-0.1},
+          r:() => '母亲犹豫了一下，还是掏了钱。\n你把东西捧在手里，舍不得马上吃完。'},
+        {t:'躲到母亲身后偷看', eff:{'心情':1,'见闻':0.5},
+          r:() => '你从母亲腿边探出半张脸。\n她低头看了看你，把她的手握紧了些。'}
+      ]
+    },
+    {
+      id:'bhome2', ages:[2,5],
+      details:['腌咸菜','做煤球','糊纸盒','缝被子','生炉子'],
+      title:d => '母亲在' + d,
+      text:(d,s) => `${s.year}年${s.month}月，母亲在屋里${d}。\n你蹲在旁边看，手边的东西都想摸一摸。\n她头也不抬地说：“别碰，烫。”`,
+      opts:(d,s) => [
+        {t:'帮母亲递东西', eff:{'手艺':1,'好感':2,'心情':1},
+          r:() => '你递错了两回，母亲没恼，只说慢点。\n后来你递对了，她嗯了一声。'},
+        {t:'蹲在旁边问东问西', eff:{'见闻':1.2,'心情':2},
+          r:() => '母亲一边做一边答，答到后来自己也笑了。\n你记住了几个词，也不知道对不对。'},
+        {t:'自己去找玩的东西', eff:{'心情':2,'好感':-0.5},
+          r:() => '你在屋里翻出个旧线轴，滚来滚去玩了一下午。\n母亲忙完才发现你脸上全是灰。'}
+      ]
+    },
+    {
+      id:'bfestival', ages:[2,5],
+      details:['腊肉','糍粑','鞭炮','新衣','压岁钱'],
+      title:d => '过年的' + d,
+      text:(d,s) => `${s.year}年${s.month}月，快过年了，家里准备了${d}。\n父亲把东西收在高处，母亲说等三十再动。\n你一天要问好几遍。`,
+      opts:(d,s) => [
+        {t:'趁大人不注意偷看一眼', eff:{'胆量':0.8,'心情':3},
+          r:() => '你搬了凳子，够到一半就被母亲发现。\n她把你抱下来，说再等两天。'},
+        {t:'帮母亲贴春联', eff:{'手艺':1,'见闻':1,'好感':2,'心情':2},
+          r:() => '你扶着纸，母亲刷浆糊。\n贴歪了一点，她也没揭下来重贴。'},
+        {t:'守在家里等吃', eff:{'心情':2,'健康':0.3},
+          r:() => '你围在灶台边转，母亲夹了一点给你尝。\n那一口烫得你直吸气，还是说好吃。'}
+      ]
+    },
+    {
+      id:'bnursery2', ages:[3,5],
+      details:['午睡','抢玩具','尿裤子','老师表扬','排队洗手'],
+      title:d => '托儿所的' + d,
+      text:(d,s) => `${s.year}年${s.month}月，托儿所里${d}。\n几个孩子挤在一间屋里，老师的声音压过哭声。\n你站在自己的小床旁边。`,
+      opts:(d,s) => [
+        {t:'听老师的话', eff:{'好感':1,'心情':1,'人缘':0.8},
+          r:() => '你按老师说的做了。\n她摸了摸你的头，说真乖。'},
+        {t:'跟别的孩子一起闹', eff:{'人缘':2,'胆量':0.8,'心情':3},
+          r:() => '你们把床单扯来扯去，老师进来时都装睡。\n等老师走了，几个人憋笑憋得直抖。'},
+        {t:'想母亲，憋着不哭', eff:{'心情':-1,'胆量':1},
+          r:() => '你坐在小床上，眼睛盯着门口。\n母亲来接你时，你才跑过去。'}
+      ]
+    },
+    {
+      id:'bweather2', ages:[2,5],
+      details:['下雨','下雪','刮风','大热天'],
+      title:d => '遇到' + d,
+      text:(d,s) => `${s.year}年${s.month}月，${d}。\n母亲把你关在屋里，说今天不许出去。\n你趴在窗边，看外面的人缩着脖子走。`,
+      opts:(d,s) => [
+        {t:'趴在窗边看', eff:{'见闻':1.2,'心情':1},
+          r:() => '你看雨点砸在水洼里，看雪落在瓦上。\n母亲在身后说，看一会儿就过来。'},
+        {t:'趁母亲不注意跑出去', eff:{'胆量':1.5,'健康':-0.8,'心情':3},
+          r:() => '你跑出去踩了两脚，就被母亲拎回来。\n她一边给你擦脚一边数落你。'},
+        {t:'让母亲讲个故事', eff:{'心情':2,'好感':1.5},
+          r:() => '母亲讲了个旧故事，讲着讲着自己也打起了瞌睡。\n你靠在她身上，听着雨声。'}
+      ]
+    },
+    {
+      id:'bfood2', ages:[2,5],
+      details:['红烧肉','水果糖','冰棍','糖水','白面馒头'],
+      title:d => '吃到' + d,
+      text:(d,s) => `${s.year}年${s.month}月，家里难得有${d}。\n母亲把它分成几份，父亲说他不爱吃。\n你盯着自己那一份，又看了看别人的。`,
+      opts:(d,s) => [
+        {t:'把自己那份分给弟妹', eff:{'好感':2,'人缘':1,'心情':2}, cond:s => siblingsOf(s).length > 0,
+          r:() => '弟妹接过去，吃得满脸都是。\n母亲看了看你，没说话，把自己那份又拨给你一点。'},
+        {t:'慢慢吃，舍不得吃完', eff:{'心情':3},
+          r:() => '你一点一点地咬，含在嘴里舍不得咽。\n最后一口吃完，还舔了舔手指。'},
+        {t:'先让母亲尝一口', eff:{'好感':3,'心情':2},
+          r:() => '母亲说她不饿，你举着手不放下。\n她只好低头咬了一小口。'}
+      ]
     },
   ];
 
